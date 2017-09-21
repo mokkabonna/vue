@@ -48,6 +48,10 @@ export function isPlainObject (obj: any): boolean {
   return _toString.call(obj) === '[object Object]'
 }
 
+export function isFunction (obj: any): boolean {
+  return _toString.call(obj) === '[object Function]'
+}
+
 export function isRegExp (v: any): boolean {
   return _toString.call(v) === '[object RegExp]'
 }

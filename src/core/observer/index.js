@@ -10,6 +10,7 @@ import {
   hasProto,
   isObject,
   isPlainObject,
+  isFunction,
   isValidArrayIndex,
   isServerRendering
 } from '../util/index'
@@ -105,7 +106,7 @@ function copyAugment (target: Object, src: Object, keys: Array<string>) {
  * or the existing observer if the value already has one.
  */
 export function observe (value: any, asRootData: ?boolean): Observer | void {
-  if (!isObject(value) || value instanceof VNode) {
+  if ((!isObject(value) && !isFunction(value)) || value instanceof VNode) {
     return
   }
   let ob: Observer | void
@@ -114,7 +115,7 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
   } else if (
     observerState.shouldConvert &&
     !isServerRendering() &&
-    (Array.isArray(value) || isPlainObject(value)) &&
+    (Array.isArray(value) || isPlainObject(value) || isFunction(value)) &&
     Object.isExtensible(value) &&
     !value._isVue
   ) {

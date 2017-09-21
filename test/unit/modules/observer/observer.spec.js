@@ -176,6 +176,17 @@ describe('Observer', () => {
     expect(arr[1].__ob__ instanceof Observer).toBe(true)
   })
 
+  it('create on function', () => {
+    const func = function () {}
+    func.a = {}
+    const ob1 = observe(func)
+    expect(ob1 instanceof Observer).toBe(true)
+    expect(ob1.value).toBe(func)
+    expect(func.__ob__).toBe(ob1)
+    // should've walked children
+    expect(func.a.__ob__ instanceof Observer).toBe(true)
+  })
+
   it('observing object prop change', () => {
     const obj = { a: { b: 2 }, c: NaN }
     observe(obj)
@@ -213,6 +224,45 @@ describe('Observer', () => {
     expect(watcher.update.calls.count()).toBe(3)
   })
 
+  it('observing function prop change', () => {
+    const func = function () {}
+    func.a = { b: 2 }
+    func.c = NaN
+    observe(func)
+    // mock a watcher!
+    const watcher = {
+      deps: [],
+      addDep (dep) {
+        this.deps.push(dep)
+        dep.addSub(this)
+      },
+      update: jasmine.createSpy()
+    }
+    // collect dep
+    Dep.target = watcher
+    func.a.b
+    Dep.target = null
+    expect(watcher.deps.length).toBe(3) // func.a + a + a.b
+    func.a.b = 3
+    expect(watcher.update.calls.count()).toBe(1)
+    // swap object
+    func.a = { b: 4 }
+    expect(watcher.update.calls.count()).toBe(2)
+    watcher.deps = []
+
+    Dep.target = watcher
+    func.a.b
+    func.c
+    Dep.target = null
+    expect(watcher.deps.length).toBe(4)
+    // set on the swapped object
+    func.a.b = 5
+    expect(watcher.update.calls.count()).toBe(3)
+    // should not trigger on NaN -> NaN set
+    func.c = NaN
+    expect(watcher.update.calls.count()).toBe(3)
+  })
+
   it('observing object prop change on defined property', () => {
     const obj = { val: 2 }
     Object.defineProperty(obj, 'a', {
@@ -243,6 +293,39 @@ describe('Observer', () => {
     expect(obj.val).toBe(3) // make sure 'setter' was called
     obj.val = 5
     expect(obj.a).toBe(5) // make sure 'getter' was called
+  })
+
+  it('observing function prop change on defined property', () => {
+    const func = function () {}
+    func.val = 2
+    Object.defineProperty(func, 'a', {
+      configurable: true,
+      enumerable: true,
+      get () { return this.val },
+      set (v) {
+        this.val = v
+        return this.val
+      }
+    })
+
+    observe(func)
+    // mock a watcher!
+    const watcher = {
+      deps: [],
+      addDep: function (dep) {
+        this.deps.push(dep)
+        dep.addSub(this)
+      },
+      update: jasmine.createSpy()
+    }
+    // collect dep
+    Dep.target = watcher
+    expect(func.a).toBe(2) // Make sure 'this' is preserved
+    Dep.target = null
+    func.a = 3
+    expect(func.val).toBe(3) // make sure 'setter' was called
+    func.val = 5
+    expect(func.a).toBe(5) // make sure 'getter' was called
   })
 
   it('observing set/delete', () => {
